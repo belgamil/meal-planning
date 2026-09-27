@@ -5,7 +5,7 @@
 import { parseRecipeText } from './recipe-text.js';
 
 const PASSCODE_KEY = 'mealPlanner.passcode';
-const state = { recipes: [], days: {} };
+const state = { recipes: [], days: {}, groceries: {} };
 let passcode = readPasscode();
 let lastStateJson = '';
 
@@ -86,6 +86,15 @@ function persistDay(key) {
     .then(() => { if (pendingNotes.get(key) === (day ? day.notes : '')) pendingNotes.delete(key); });
 }
 
+// A week's grocery checklist, keyed by the week's Monday: which items are checked off, plus
+// items added by hand.
+function persistGroceries(week) {
+  const list = state.groceries[week];
+  queueWrite('groceries/' + week, () => (list
+    ? api('PUT', 'groceries/' + week, list)
+    : api('DELETE', 'groceries/' + week)));
+}
+
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 
 // ---------- Dates ----------
@@ -150,9 +159,10 @@ function showView(name) {
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.view === name));
   $('#plan-view').hidden = name !== 'plan';
   $('#recipes-view').hidden = name !== 'recipes';
+  $('#groceries-view').hidden = name !== 'groceries';
   renderAll();
 }
-function renderAll() { renderWeek(); renderRecipes(); }
+function renderAll() { renderWeek(); renderRecipes(); renderGroceries(); }
 document.querySelectorAll('dialog [data-close]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
 
 // ---------- Weekly plan ----------
@@ -168,7 +178,8 @@ function renderWeek() {
   const grid = $('#week-grid');
   const todayKey = dateKey(new Date());
   const end = addDays(weekStart, 6);
-  $('#week-label').textContent = `${fmtShort.format(weekStart)} – ${fmtShort.format(end)}, ${end.getFullYear()}`;
+  const label = `${fmtShort.format(weekStart)} – ${fmtShort.format(end)}, ${end.getFullYear()}`;
+  document.querySelectorAll('.week-label').forEach((h) => { h.textContent = label; });
 
   const cards = [];
   for (let i = 0; i < 7; i++) {
@@ -229,9 +240,13 @@ function renderWeek() {
   }
 }
 
-$('#prev-week').addEventListener('click', () => { weekStart = addDays(weekStart, -7); renderWeek(); });
-$('#next-week').addEventListener('click', () => { weekStart = addDays(weekStart, 7); renderWeek(); });
-$('#today-btn').addEventListener('click', () => { weekStart = startOfWeek(new Date()); renderWeek(); });
+// Week navigation (shared by the Plan and Groceries tabs): -1 previous, 0 this week, 1 next.
+document.querySelectorAll('[data-week]').forEach((btn) => btn.addEventListener('click', () => {
+  const step = Number(btn.dataset.week);
+  weekStart = step === 0 ? startOfWeek(new Date()) : addDays(weekStart, step * 7);
+  renderWeek();
+  renderGroceries();
+}));
 
 // ---------- Icons ----------
 
@@ -629,37 +644,122 @@ function openRecipeViewer(id) {
 $('#view-edit-btn').addEventListener('click', () => { $('#view-dialog').close(); openRecipeEditor(viewingId); });
 
 // ---------- Grocery list ----------
+// Built from the ingredients of every saved recipe planned for the week shown, plus items added
+// by hand. Identical ingredient lines are merged and counted.
 
-let groceryItems = [];
-function buildGroceryList() {
-  const counts = new Map();
+const groceryKey = (text) => text.trim().toLowerCase().replace(/\s+/g, ' ');
+
+function getGroceries(week) {
+  const g = state.groceries[week];
+  return { checked: g ? [...g.checked] : [], extras: g ? [...g.extras] : [] };
+}
+function setGroceries(week, list) {
+  if (!list.checked.length && !list.extras.length) delete state.groceries[week];
+  else state.groceries[week] = list;
+  persistGroceries(week);
+}
+
+function buildGroceryItems(week) {
+  const items = new Map();
   for (let i = 0; i < 7; i++) {
     for (const meal of getDay(dateKey(addDays(weekStart, i))).meals) {
       const recipe = meal.recipeId && findRecipe(meal.recipeId);
       if (!recipe) continue;
-      for (const item of recipe.ingredients || []) {
-        const k = item.toLowerCase();
-        const entry = counts.get(k) || { label: item, n: 0 };
-        entry.n++;
-        counts.set(k, entry);
+      for (const line of recipe.ingredients || []) {
+        const key = groceryKey(line);
+        if (!key) continue;
+        const item = items.get(key) || { key, label: line.trim(), n: 0, sources: [] };
+        item.n++;
+        if (!item.sources.includes(recipe.name)) item.sources.push(recipe.name);
+        items.set(key, item);
       }
     }
   }
-  return [...counts.values()].sort((a, b) => a.label.localeCompare(b.label));
+  const list = [...items.values()].sort((a, b) => a.label.localeCompare(b.label));
+  for (const x of getGroceries(week).extras) list.push({ key: 'extra:' + x.id, label: x.text, n: 1, sources: [], extraId: x.id });
+  return list;
 }
-$('#grocery-btn').addEventListener('click', () => {
-  groceryItems = buildGroceryList();
-  $('#grocery-range').textContent = `Ingredients from the recipes planned for ${$('#week-label').textContent}`;
-  $('#grocery-text').hidden = true;
-  $('#grocery-content').replaceChildren(groceryItems.length === 0
-    ? el('p', { class: 'muted' }, 'Nothing yet. Add saved recipes that have ingredients to this week.')
-    : el('ul', { class: 'grocery' }, groceryItems.map((item) =>
-        el('li', {}, el('label', {}, el('input', { type: 'checkbox' }), el('span', {}, item.label),
-          item.n > 1 && el('span', { class: 'count' }, `×${item.n}`))))));
-  $('#grocery-dialog').showModal();
+
+function renderGroceries() {
+  const week = dateKey(weekStart);
+  const items = buildGroceryItems(week);
+  const checked = new Set(getGroceries(week).checked);
+  const todo = items.filter((i) => !checked.has(i.key));
+  const done = items.filter((i) => checked.has(i.key));
+  const recipeCount = new Set(items.flatMap((i) => i.sources)).size;
+
+  $('#grocery-summary').textContent = items.length
+    ? `${todo.length} to buy · ${done.length} checked off` + (recipeCount ? ` · from ${recipeCount} recipe${recipeCount > 1 ? 's' : ''} planned this week` : '')
+    : '';
+  const empty = $('#grocery-empty');
+  empty.hidden = items.length > 0;
+  empty.textContent = 'Nothing to buy yet. Plan saved recipes that have ingredients for this week, or add items above.';
+  if (items.length && !todo.length) { empty.hidden = false; empty.textContent = 'All done. Everything is checked off.'; }
+
+  $('#grocery-todo').replaceChildren(...todo.map((i) => groceryRow(week, i, false)));
+  $('#grocery-done').replaceChildren(...done.map((i) => groceryRow(week, i, true)));
+  $('#grocery-done-wrap').hidden = done.length === 0;
+  $('#grocery-done-title').textContent = `Checked off (${done.length})`;
+}
+
+function groceryRow(week, item, isChecked) {
+  const source = item.extraId ? 'Added by you' : `for ${item.sources.join(', ')}`;
+  return el('li', {},
+    el('label', {},
+      el('input', { type: 'checkbox', checked: isChecked, onchange: (e) => toggleGrocery(week, item.key, e.target.checked) }),
+      el('span', { class: 'item' },
+        el('span', { class: 'name' }, item.label, item.n > 1 && el('span', { class: 'count' }, ` ×${item.n}`)),
+        el('span', { class: 'source' }, source))),
+    item.extraId && el('button', { class: 'remove', title: 'Remove item', 'aria-label': `Remove ${item.label}`,
+      onclick: () => removeExtra(week, item.extraId) }, '×'));
+}
+
+function toggleGrocery(week, key, on) {
+  const list = getGroceries(week);
+  list.checked = list.checked.filter((k) => k !== key);
+  if (on) list.checked.push(key);
+  setGroceries(week, list);
+  renderGroceries();
+}
+
+function removeExtra(week, id) {
+  const list = getGroceries(week);
+  list.extras = list.extras.filter((x) => x.id !== id);
+  list.checked = list.checked.filter((k) => k !== 'extra:' + id);
+  setGroceries(week, list);
+  renderGroceries();
+}
+
+$('#grocery-add').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const input = $('#grocery-add-text');
+  const text = input.value.trim();
+  if (!text) { input.focus(); return; }
+  const week = dateKey(weekStart);
+  const list = getGroceries(week);
+  list.extras.push({ id: uid(), text });
+  setGroceries(week, list);
+  input.value = '';
+  input.focus();
+  renderGroceries();
 });
+
+$('#grocery-uncheck-all').addEventListener('click', () => {
+  const week = dateKey(weekStart);
+  const list = getGroceries(week);
+  list.checked = [];
+  setGroceries(week, list);
+  renderGroceries();
+});
+
+$('#grocery-btn').addEventListener('click', () => showView('groceries'));
+
+// Copies what's still left to buy.
 $('#copy-grocery-btn').addEventListener('click', () => {
-  const text = groceryItems.map((i) => `- ${i.label}${i.n > 1 ? ` (×${i.n})` : ''}`).join('\n');
+  const week = dateKey(weekStart);
+  const checked = new Set(getGroceries(week).checked);
+  const text = buildGroceryItems(week).filter((i) => !checked.has(i.key))
+    .map((i) => `- ${i.label}${i.n > 1 ? ` (×${i.n})` : ''}`).join('\n');
   const btn = $('#copy-grocery-btn');
   const fallback = () => {
     const t = $('#grocery-text');
@@ -717,7 +817,7 @@ $('#restore-confirm').addEventListener('click', async () => {
 function showLock(message = '') {
   $('#lock-view').hidden = false;
   $('#lock-error').textContent = message;
-  for (const id of ['#tabs', '#sync', '#header-actions', '#plan-view', '#recipes-view']) $(id).hidden = true;
+  for (const id of ['#tabs', '#sync', '#header-actions', '#plan-view', '#recipes-view', '#groceries-view']) $(id).hidden = true;
   document.querySelectorAll('dialog[open]').forEach((d) => d.close());
   $('#passcode').value = '';
   $('#passcode').focus();
@@ -742,6 +842,7 @@ $('#lock-btn').addEventListener('click', () => {
   storePasscode('');
   state.recipes = [];
   state.days = {};
+  state.groceries = {};
   lastStateJson = '';
   showLock();
 });
@@ -761,6 +862,10 @@ function applyState(data) {
     else if (notes.trim()) days[key] = { meals: [], notes };
   }
   state.days = days;
+  state.groceries = {};
+  for (const [week, g] of Object.entries(data.groceries || {})) {
+    state.groceries[week] = { checked: [...(g.checked || [])], extras: [...(g.extras || [])] };
+  }
   renderAll();
 }
 

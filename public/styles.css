@@ -209,11 +209,26 @@ dialog label input, dialog label textarea, dialog label select { font-weight: 40
 #view-content ul { margin: 0; padding-left: 1.2rem; }
 .pre { white-space: pre-wrap; }
 
+.grocery-panel {
+  max-width: 640px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1rem; display: flex; flex-direction: column; gap: 0.8rem;
+}
+.grocery-add { display: flex; gap: 0.5rem; }
+.grocery-add input { flex: 1; min-width: 0; }
 .grocery { list-style: none; padding: 0; margin: 0; }
-.grocery li { padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
-.grocery label { flex-direction: row; align-items: center; gap: 0.55rem; font-weight: 400; font-size: 0.95rem; }
-.grocery input:checked + span { text-decoration: line-through; color: var(--muted); }
-.grocery .count { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.grocery li { display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid var(--border); }
+.grocery li:last-child { border-bottom: none; }
+.grocery label { flex: 1; min-width: 0; display: flex; align-items: flex-start; gap: 0.65rem; padding: 0.6rem 0; cursor: pointer; }
+.grocery input[type=checkbox] { width: 1.15rem; height: 1.15rem; margin: 0.15rem 0 0; flex-shrink: 0; accent-color: var(--accent); }
+.grocery .item { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; overflow-wrap: anywhere; }
+.grocery .source { color: var(--muted); font-size: 0.8rem; }
+.grocery .count { color: var(--accent); font-weight: 600; font-variant-numeric: tabular-nums; }
+.grocery input:checked + .item .name { text-decoration: line-through; color: var(--muted); }
+.grocery .remove { background: none; border: none; color: var(--muted); font-size: 1.15rem; line-height: 1; padding: 0.2rem 0.4rem; }
+.grocery .remove:hover { color: var(--danger); }
+.grocery-done { border-top: 1px solid var(--border); padding-top: 0.6rem; }
+.grocery-done-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.grocery-done-head h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 #grocery-text { font-size: 0.85rem; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

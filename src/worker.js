@@ -6,6 +6,8 @@
 //   DELETE /api/recipes/:id
 //   PUT    /api/days/:date       save a day's meals and notes
 //   DELETE /api/days/:date
+//   PUT    /api/groceries/:monday  save a week's grocery checklist (checked items, extra items)
+//   DELETE /api/groceries/:monday
 //   POST   /api/restore          replace everything from a backup file
 //   POST   /api/import           { url } -> recipe fields read from that web page
 //
@@ -82,6 +84,19 @@ async function route(request, env, url) {
     }
   }
 
+  if (parts[1] === 'groceries' && parts.length === 3) {
+    const week = parts[2];
+    if (!DATE_RE.test(week)) throw new HttpError(400, 'Invalid week.');
+    if (method === 'PUT') {
+      await store.putGroceries(week, cleanGroceries(await readJson(request)));
+      return json({ ok: true });
+    }
+    if (method === 'DELETE') {
+      await store.deleteGroceries(week);
+      return json({ ok: true });
+    }
+  }
+
   if (parts[1] === 'restore' && parts.length === 2 && method === 'POST') {
     const body = await readJson(request);
     if (!Array.isArray(body.recipes) || !body.days || typeof body.days !== 'object') {
@@ -91,7 +106,10 @@ async function route(request, env, url) {
     const days = Object.fromEntries(Object.entries(body.days)
       .filter(([k, d]) => DATE_RE.test(k) && d && Array.isArray(d.meals))
       .map(([k, d]) => [k, { meals: d.meals, notes: String(d.notes || '') }]));
-    await store.replaceAll({ recipes, days });
+    const groceries = Object.fromEntries(Object.entries(body.groceries && typeof body.groceries === 'object' ? body.groceries : {})
+      .filter(([k, g]) => DATE_RE.test(k) && g && typeof g === 'object')
+      .map(([k, g]) => [k, cleanGroceries(g)]));
+    await store.replaceAll({ recipes, days, groceries });
     return json({ ok: true, recipes: recipes.length, days: Object.keys(days).length });
   }
 
@@ -101,6 +119,17 @@ async function route(request, env, url) {
   }
 
   throw new HttpError(404, 'Not found.');
+}
+
+// A week's checklist: keys of checked items, plus items added by hand.
+function cleanGroceries(body) {
+  const checked = (Array.isArray(body.checked) ? body.checked : [])
+    .filter((k) => typeof k === 'string' && k.length <= 300).slice(0, 1000);
+  const extras = (Array.isArray(body.extras) ? body.extras : [])
+    .filter((x) => x && ID_RE.test(x.id) && typeof x.text === 'string' && x.text.trim())
+    .map((x) => ({ id: x.id, text: x.text.trim().slice(0, 200) }))
+    .slice(0, 300);
+  return { checked, extras };
 }
 
 async function importRecipe(rawUrl) {

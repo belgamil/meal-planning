@@ -1,6 +1,6 @@
 # Weeknight Table
 
-A weekly meal planner. Save recipes, import them from a link, plan them onto days, jot notes for each day, drag meals between days, and get a grocery list for the week. Your data syncs across your devices.
+A weekly meal planner. Save recipes, import them from a link, plan them onto days, jot notes for each day, and drag meals between days. The Groceries tab turns the week's recipes into a checklist you can tick off at the store, with room for extra items. Your data syncs across your devices.
 
 It runs as a single [Cloudflare Worker](https://developers.cloudflare.com/workers/) on Cloudflare's free plan:
 

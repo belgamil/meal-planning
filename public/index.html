@@ -16,6 +16,7 @@
     <nav class="tabs" id="tabs" hidden>
       <button class="tab active" id="tab-plan" data-view="plan">Plan</button>
       <button class="tab" id="tab-recipes" data-view="recipes">Recipes</button>
+      <button class="tab" id="tab-groceries" data-view="groceries">Groceries</button>
     </nav>
     <span id="sync" class="sync" hidden></span>
     <div class="header-actions" id="header-actions" hidden>
@@ -39,13 +40,40 @@
 
   <section id="plan-view" hidden>
     <div class="toolbar">
-      <button id="prev-week" class="ghost" aria-label="Previous week">←</button>
-      <button id="today-btn" class="ghost">This week</button>
-      <button id="next-week" class="ghost" aria-label="Next week">→</button>
-      <h2 id="week-label"></h2>
+      <button class="ghost" data-week="-1" aria-label="Previous week">←</button>
+      <button class="ghost" data-week="0">This week</button>
+      <button class="ghost" data-week="1" aria-label="Next week">→</button>
+      <h2 class="week-label"></h2>
       <button id="grocery-btn">Grocery list</button>
     </div>
     <div id="week-grid" class="week-grid"></div>
+  </section>
+
+  <section id="groceries-view" hidden>
+    <div class="toolbar">
+      <button class="ghost" data-week="-1" aria-label="Previous week">←</button>
+      <button class="ghost" data-week="0">This week</button>
+      <button class="ghost" data-week="1" aria-label="Next week">→</button>
+      <h2 class="week-label"></h2>
+      <button id="copy-grocery-btn" class="ghost">Copy list</button>
+    </div>
+    <div class="grocery-panel">
+      <p id="grocery-summary" class="muted small"></p>
+      <form id="grocery-add" class="grocery-add">
+        <input id="grocery-add-text" placeholder="Add an item, e.g. milk, paper towels" aria-label="Add an item" maxlength="200">
+        <button type="submit">Add</button>
+      </form>
+      <textarea id="grocery-text" rows="6" readonly hidden></textarea>
+      <ul id="grocery-todo" class="grocery"></ul>
+      <p id="grocery-empty" class="empty" hidden></p>
+      <div id="grocery-done-wrap" class="grocery-done" hidden>
+        <div class="grocery-done-head">
+          <h3 id="grocery-done-title"></h3>
+          <button type="button" id="grocery-uncheck-all" class="text-btn">Uncheck all</button>
+        </div>
+        <ul id="grocery-done" class="grocery"></ul>
+      </div>
+    </div>
   </section>
 
   <section id="recipes-view" hidden>
@@ -151,20 +179,6 @@
       <button type="submit">Save changes</button>
     </div>
   </form>
-</dialog>
-
-<dialog id="grocery-dialog">
-  <div class="stack">
-    <h2>Grocery list</h2>
-    <p id="grocery-range" class="muted small"></p>
-    <div id="grocery-content"></div>
-    <textarea id="grocery-text" rows="6" readonly hidden></textarea>
-    <div class="actions">
-      <button type="button" id="copy-grocery-btn" class="ghost">Copy list</button>
-      <span class="spacer"></span>
-      <button type="button" data-close>Close</button>
-    </div>
-  </div>
 </dialog>
 
 <dialog id="restore-dialog">
