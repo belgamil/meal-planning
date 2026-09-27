@@ -24,13 +24,13 @@ You need a free Cloudflare account and this GitHub repository.
    - Set the production branch to the branch that has this code.
    - Leave the build command empty and keep the deploy command as `npx wrangler deploy`.
    - Click **Deploy**. The first deploy creates the Worker and its database.
-3. **Set your passcode.** Open the new `meal-planner` Worker, go to **Settings → Variables and Secrets**, and add:
+3. **Set your passcode.** Open the new `meal-planning` Worker, go to **Settings → Variables and Secrets**, and add:
    - Type: **Secret**
    - Name: `APP_PASSCODE`
    - Value: a passcode you'll remember. It's the only thing protecting your data, so make it long, for example four random words.
 
    Save and deploy.
-4. **Open your planner** at the URL Cloudflare shows (something like `https://meal-planner.<your-name>.workers.dev`), and enter your passcode. Bookmark it, or on a phone use **Share → Add to Home Screen**.
+4. **Open your planner** at the URL Cloudflare shows (something like `https://meal-planning.<your-name>.workers.dev`), and enter your passcode. Bookmark it, or on a phone use **Share → Add to Home Screen**.
 5. **Bring your existing data in (optional).** Click **Restore** and choose a backup file.
 
 From then on, every push to the production branch redeploys automatically.

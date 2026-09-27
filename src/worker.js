@@ -26,7 +26,7 @@ export default {
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
 
     if (!env.APP_PASSCODE) {
-      return json({ error: 'The APP_PASSCODE secret isn’t set on this Worker yet. In Cloudflare, open the meal-planner Worker → Settings → “Variables and Secrets” (not the one under Build), add a Secret named APP_PASSCODE, then reload this page.' }, 500);
+      return json({ error: 'The APP_PASSCODE secret isn’t set on this Worker yet. In Cloudflare, open the meal-planning Worker → Settings → “Variables and Secrets” (not the one under Build), add a Secret named APP_PASSCODE, then reload this page.' }, 500);
     }
     if (!(await passcodeMatches(request, env.APP_PASSCODE))) {
       return json({ error: 'Wrong passcode.' }, 401);
