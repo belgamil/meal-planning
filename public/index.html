@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Weeknight Table</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="app-header">
+  <div class="header-inner">
+    <h1>Weeknight Table</h1>
+    <nav class="tabs" id="tabs" hidden>
+      <button class="tab active" id="tab-plan" data-view="plan">Plan</button>
+      <button class="tab" id="tab-recipes" data-view="recipes">Recipes</button>
+    </nav>
+    <span id="sync" class="sync" hidden></span>
+    <div class="header-actions" id="header-actions" hidden>
+      <button id="export-btn" class="ghost" title="Download a backup of all your recipes and plans">Back up</button>
+      <label class="btn ghost" title="Replace everything with a backup file">
+        Restore<input id="restore-input" type="file" accept="application/json,.json" hidden>
+      </label>
+      <button id="lock-btn" class="ghost" title="Forget the passcode on this device">Lock</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <form id="lock-view" class="lock" hidden>
+    <h2>Welcome back</h2>
+    <p class="muted">Enter your planner passcode. This device will remember it.</p>
+    <label>Passcode<input id="passcode" type="password" autocomplete="current-password" required></label>
+    <p id="lock-error" class="error" role="alert"></p>
+    <button type="submit">Open my planner</button>
+  </form>
+
+  <section id="plan-view" hidden>
+    <div class="toolbar">
+      <button id="prev-week" class="ghost" aria-label="Previous week">←</button>
+      <button id="today-btn" class="ghost">This week</button>
+      <button id="next-week" class="ghost" aria-label="Next week">→</button>
+      <h2 id="week-label"></h2>
+      <button id="grocery-btn">Grocery list</button>
+    </div>
+    <div id="week-grid" class="week-grid"></div>
+  </section>
+
+  <section id="recipes-view" hidden>
+    <div class="toolbar">
+      <input id="recipe-search" type="search" placeholder="Search recipes, ingredients, tags">
+      <button id="new-recipe-btn">+ New recipe</button>
+    </div>
+    <div id="recipe-list" class="recipe-list"></div>
+  </section>
+</main>
+
+<dialog id="recipe-dialog">
+  <form id="recipe-form" class="stack" method="dialog">
+    <h2 id="recipe-dialog-title">New recipe</h2>
+    <section class="import-box stack">
+      <label for="f-url">Recipe link</label>
+      <div class="link-row">
+        <input id="f-url" name="url" type="url" placeholder="https://www.example.com/best-lasagna/">
+        <button type="button" id="imp-link-btn">Import</button>
+      </div>
+      <p class="muted small">Paste a link and press Import to fill in the recipe. For sites behind a login, like NYT Cooking, paste the recipe text instead.</p>
+      <button type="button" id="imp-paste-toggle" class="text-btn">Paste the recipe text instead</button>
+      <div id="imp-paste" class="stack" hidden>
+        <textarea id="imp-text" rows="4" placeholder="Copy the recipe from the page (title through the last step) and paste it here"></textarea>
+        <div class="actions">
+          <span class="spacer"></span>
+          <button type="button" id="imp-text-btn" class="ghost">Fill in from text</button>
+        </div>
+      </div>
+      <p id="imp-status" class="small" role="status"></p>
+    </section>
+    <label>Name<input id="f-name" name="name" required></label>
+    <div class="row">
+      <label>Servings<input id="f-servings" name="servings" type="number" min="1"></label>
+      <label>Total time<input id="f-time" name="time" placeholder="e.g. 45 min"></label>
+    </div>
+    <label>Tags<input id="f-tags" name="tags" placeholder="comma separated, e.g. vegetarian, quick"></label>
+    <label>Ingredients <small>one per line</small><textarea id="f-ingredients" name="ingredients" rows="6"></textarea></label>
+    <label>Instructions<textarea id="f-instructions" name="instructions" rows="6"></textarea></label>
+    <label>Notes<textarea id="f-notes" name="notes" rows="3"></textarea></label>
+    <div class="actions">
+      <button type="button" id="delete-recipe-btn" class="danger" hidden>Delete</button>
+      <span class="spacer"></span>
+      <button type="button" data-close class="ghost">Cancel</button>
+      <button type="submit">Save recipe</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="view-dialog">
+  <div class="stack">
+    <div id="view-content" class="stack"></div>
+    <div class="actions">
+      <span class="spacer"></span>
+      <button type="button" id="view-edit-btn" class="ghost">Edit</button>
+      <button type="button" data-close>Close</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="add-dialog">
+  <form id="add-form" class="stack" method="dialog">
+    <h2 id="add-dialog-title">Add a meal</h2>
+    <label>Meal
+      <select id="add-slot" name="slot">
+        <option>Breakfast</option><option>Lunch</option><option selected>Dinner</option><option>Snack</option>
+      </select>
+    </label>
+    <input id="add-search" type="search" placeholder="Search your recipes">
+    <div id="add-recipe-options" class="pick-list"></div>
+    <label>Or type something without a saved recipe
+      <input id="add-free" name="freeText" placeholder="e.g. Leftovers, takeout pizza">
+    </label>
+    <div class="actions">
+      <span class="spacer"></span>
+      <button type="button" data-close class="ghost">Cancel</button>
+      <button type="submit">Add to day</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="edit-meal-dialog">
+  <form id="edit-meal-form" class="stack" method="dialog">
+    <h2>Edit meal</h2>
+    <div class="row">
+      <label>Meal
+        <select id="em-slot">
+          <option>Breakfast</option><option>Lunch</option><option>Dinner</option><option>Snack</option>
+        </select>
+      </label>
+      <label>Day<input id="em-date" type="date" required></label>
+    </div>
+    <label>Recipe
+      <select id="em-recipe"></select>
+    </label>
+    <label id="em-text-label">What you're cooking
+      <input id="em-text" placeholder="e.g. Leftovers, takeout pizza">
+    </label>
+    <div class="actions">
+      <button type="button" id="em-remove" class="danger">Remove</button>
+      <span class="spacer"></span>
+      <button type="button" data-close class="ghost">Cancel</button>
+      <button type="submit">Save changes</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="grocery-dialog">
+  <div class="stack">
+    <h2>Grocery list</h2>
+    <p id="grocery-range" class="muted small"></p>
+    <div id="grocery-content"></div>
+    <textarea id="grocery-text" rows="6" readonly hidden></textarea>
+    <div class="actions">
+      <button type="button" id="copy-grocery-btn" class="ghost">Copy list</button>
+      <span class="spacer"></span>
+      <button type="button" data-close>Close</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="restore-dialog">
+  <div class="stack">
+    <h2>Restore from backup?</h2>
+    <p id="restore-summary"></p>
+    <p class="muted small">This replaces all recipes and plans currently in your planner.</p>
+    <div class="actions">
+      <span class="spacer"></span>
+      <button type="button" data-close class="ghost">Cancel</button>
+      <button type="button" id="restore-confirm" class="danger armed">Replace everything</button>
+    </div>
+  </div>
+</dialog>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

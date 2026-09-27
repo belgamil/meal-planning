@@ -1,0 +1,20 @@
+name = "meal-planner"
+main = "src/worker.js"
+compatibility_date = "2025-09-01"
+
+# The app's pages. Requests that don't match a file (like /api/...) go to the Worker.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# Your recipes and plan live in this Durable Object's built-in SQLite database.
+[[durable_objects.bindings]]
+name = "PLANNER"
+class_name = "PlannerStore"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PlannerStore"]
+
+# The passcode is a secret, set in the Cloudflare dashboard (Settings → Variables and Secrets)
+# or with: npx wrangler secret put APP_PASSCODE
