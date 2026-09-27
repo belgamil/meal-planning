@@ -2,6 +2,9 @@ name = "meal-planner"
 main = "src/worker.js"
 compatibility_date = "2025-09-01"
 
+# Keep variables added in the dashboard when deploying from GitHub.
+keep_vars = true
+
 # The app's pages. Requests that don't match a file (like /api/...) go to the Worker.
 [assets]
 directory = "./public"
